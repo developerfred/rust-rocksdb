@@ -216,9 +216,6 @@ impl Env {
 ///    opts.set_level_zero_stop_writes_trigger(2000);
 ///    opts.set_level_zero_slowdown_writes_trigger(0);
 ///    opts.set_compaction_style(DBCompactionStyle::Universal);
-///    opts.set_max_background_compactions(4);
-///    opts.set_max_background_flushes(4);
-///    opts.set_disable_auto_compactions(true);
 ///
 ///    DB::open(&opts, path).unwrap()
 /// }
@@ -811,6 +808,13 @@ impl Options {
         }
     }
 
+    /// Call env_default
+    pub fn env_default(opt: &Options, env: &Env) {
+        unsafe  {
+            ffi::rocksdb_options_set_env(opt.inner, env.inner);
+        }
+    }
+
     /// Sets the compression algorithm that will be used for compressing blocks.
     ///
     /// Default: `DBCompressionType::Snappy` (`DBCompressionType::None` if
@@ -1339,53 +1343,6 @@ impl Options {
         }
     }
 
-    /// Enable/disable skipping of log corruption error on recovery (If client is ok with
-    /// losing most recent changes)
-    ///
-    /// Default: false
-    #[deprecated(since = "0.15.0", note = "This option is no longer used")]
-    pub fn set_skip_log_error_on_recovery(&mut self, enabled: bool) {
-        unsafe {
-            ffi::rocksdb_options_set_skip_log_error_on_recovery(self.inner, enabled as c_uchar);
-        }
-    }
-
-    /// Hints to the OS that it should not buffer disk I/O. Enabling this
-    /// parameter may improve performance but increases pressure on the
-    /// system cache.
-    ///
-    /// The exact behavior of this parameter is platform dependent.
-    ///
-    /// On POSIX systems, after RocksDB reads data from disk it will
-    /// mark the pages as "unneeded". The operating system may - or may not
-    /// - evict these pages from memory, reducing pressure on the system
-    /// cache. If the disk block is requested again this can result in
-    /// additional disk I/O.
-    ///
-    /// On WINDOWS systems, files will be opened in "unbuffered I/O" mode
-    /// which means that data read from the disk will not be cached or
-    /// bufferized. The hardware buffer of the devices may however still
-    /// be used. Memory mapped files are not impacted by this parameter.
-    ///
-    /// Default: true
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// #[allow(deprecated)]
-    /// use rocksdb::Options;
-    ///
-    /// let mut opts = Options::default();
-    /// opts.set_allow_os_buffer(false);
-    /// ```
-    #[deprecated(
-        since = "0.7.0",
-        note = "replaced with set_use_direct_reads/set_use_direct_io_for_flush_and_compaction methods"
-    )]
-    pub fn set_allow_os_buffer(&mut self, is_allow: bool) {
-        self.set_use_direct_reads(!is_allow);
-        self.set_use_direct_io_for_flush_and_compaction(!is_allow);
-    }
 
     /// Sets the number of shards used for table cache.
     ///
@@ -1779,90 +1736,6 @@ impl Options {
         }
     }
 
-    /// Sets the maximum number of concurrent background compaction jobs, submitted to
-    /// the default LOW priority thread pool.
-    /// We first try to schedule compactions based on
-    /// `base_background_compactions`. If the compaction cannot catch up , we
-    /// will increase number of compaction threads up to
-    /// `max_background_compactions`.
-    ///
-    /// If you're increasing this, also consider increasing number of threads in
-    /// LOW priority thread pool. For more information, see
-    /// Env::SetBackgroundThreads
-    ///
-    /// Default: `1`
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rocksdb::Options;
-    ///
-    /// let mut opts = Options::default();
-    /// opts.set_max_background_compactions(2);
-    /// ```
-    #[deprecated(
-        since = "0.15.0",
-        note = "RocksDB automatically decides this based on the value of max_background_jobs"
-    )]
-    pub fn set_max_background_compactions(&mut self, n: c_int) {
-        unsafe {
-            ffi::rocksdb_options_set_max_background_compactions(self.inner, n);
-        }
-    }
-
-    /// Sets the maximum number of concurrent background memtable flush jobs, submitted to
-    /// the HIGH priority thread pool.
-    ///
-    /// By default, all background jobs (major compaction and memtable flush) go
-    /// to the LOW priority pool. If this option is set to a positive number,
-    /// memtable flush jobs will be submitted to the HIGH priority pool.
-    /// It is important when the same Env is shared by multiple db instances.
-    /// Without a separate pool, long running major compaction jobs could
-    /// potentially block memtable flush jobs of other db instances, leading to
-    /// unnecessary Put stalls.
-    ///
-    /// If you're increasing this, also consider increasing number of threads in
-    /// HIGH priority thread pool. For more information, see
-    /// Env::SetBackgroundThreads
-    ///
-    /// Default: `1`
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rocksdb::Options;
-    ///
-    /// let mut opts = Options::default();
-    /// opts.set_max_background_flushes(2);
-    /// ```
-    #[deprecated(
-        since = "0.15.0",
-        note = "RocksDB automatically decides this based on the value of max_background_jobs"
-    )]
-    pub fn set_max_background_flushes(&mut self, n: c_int) {
-        unsafe {
-            ffi::rocksdb_options_set_max_background_flushes(self.inner, n);
-        }
-    }
-
-    /// Disables automatic compactions. Manual compactions can still
-    /// be issued on this column family
-    ///
-    /// Default: `false`
-    ///
-    /// Dynamically changeable through SetOptions() API
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rocksdb::Options;
-    ///
-    /// let mut opts = Options::default();
-    /// opts.set_disable_auto_compactions(true);
-    /// ```
-    pub fn set_disable_auto_compactions(&mut self, disable: bool) {
-        unsafe { ffi::rocksdb_options_set_disable_auto_compactions(self.inner, disable as c_int) }
-    }
 
     /// SetMemtableHugePageSize sets the page size for huge page for
     /// arena used by the memtable.
